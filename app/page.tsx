@@ -1,9 +1,35 @@
 import Header from '@/components/Header';
 import ArticleCard from '@/components/ArticleCard';
-import { getAllArticles } from '@/data/articles';
+import { supabase } from '@/lib/supabase';
+import { Article } from '@/types/article';
 
-export default function Home() {
-  const articles = getAllArticles();
+export const revalidate = 0; // Désactive le cache pour toujours avoir les données à jour
+
+async function getArticles(): Promise<Article[]> {
+  const { data, error } = await supabase
+    .from('articles')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Erreur lors du chargement des articles:', error);
+    return [];
+  }
+
+  // Convertir les données Supabase au format Article
+  return (data || []).map(article => ({
+    id: article.id,
+    title: article.title,
+    content: article.content,
+    author: article.author,
+    date: new Date(article.created_at).toISOString().split('T')[0],
+    excerpt: article.excerpt,
+    imageUrl: article.image_url
+  }));
+}
+
+export default async function Home() {
+  const articles = await getArticles();
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">

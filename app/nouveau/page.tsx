@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Header from '@/components/Header';
+import { supabase } from '@/lib/supabase';
 
 export default function NewArticlePage() {
   const router = useRouter();
@@ -11,20 +12,44 @@ export default function NewArticlePage() {
   const [excerpt, setExcerpt] = useState('');
   const [content, setContent] = useState('');
   const [imageUrl, setImageUrl] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsSubmitting(true);
+    setError('');
     
-    // Pour l'instant, on affiche juste une alerte
-    // Plus tard, on pourra sauvegarder dans une vraie base de données
-    alert('Article créé avec succès ! Pour l\'instant, les articles ne sont pas sauvegardés. Nous ajouterons cette fonctionnalité bientôt.');
-    
-    // Réinitialiser le formulaire
-    setTitle('');
-    setAuthor('');
-    setExcerpt('');
-    setContent('');
-    setImageUrl('');
+    try {
+      const { data, error: supabaseError } = await supabase
+        .from('articles')
+        .insert([
+          {
+            title,
+            author,
+            excerpt,
+            content,
+            image_url: imageUrl || null,
+          }
+        ])
+        .select();
+
+      if (supabaseError) {
+        throw supabaseError;
+      }
+
+      // Article créé avec succès
+      alert('Article publié avec succès ! 🎉');
+      
+      // Rediriger vers la page d'accueil
+      router.push('/');
+      router.refresh();
+      
+    } catch (err) {
+      console.error('Erreur lors de la création de l\'article:', err);
+      setError('Une erreur est survenue lors de la publication. Veuillez réessayer.');
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -36,6 +61,12 @@ export default function NewArticlePage() {
           <h1 className="text-4xl font-bold text-gray-800 mb-8">
             ✏️ Créer un nouvel article
           </h1>
+
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
+              {error}
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-lg p-8">
             <div className="space-y-6">
@@ -49,7 +80,8 @@ export default function NewArticlePage() {
                   required
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  disabled={isSubmitting}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100"
                   placeholder="Un titre accrocheur..."
                 />
               </div>
@@ -64,7 +96,8 @@ export default function NewArticlePage() {
                   required
                   value={author}
                   onChange={(e) => setAuthor(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  disabled={isSubmitting}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100"
                   placeholder="Votre nom..."
                 />
               </div>
@@ -78,8 +111,9 @@ export default function NewArticlePage() {
                   required
                   value={excerpt}
                   onChange={(e) => setExcerpt(e.target.value)}
+                  disabled={isSubmitting}
                   rows={2}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100"
                   placeholder="Un court résumé de votre article..."
                 />
               </div>
@@ -93,7 +127,8 @@ export default function NewArticlePage() {
                   id="imageUrl"
                   value={imageUrl}
                   onChange={(e) => setImageUrl(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  disabled={isSubmitting}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100"
                   placeholder="https://exemple.com/image.jpg"
                 />
                 <p className="text-sm text-gray-500 mt-1">
@@ -110,8 +145,9 @@ export default function NewArticlePage() {
                   required
                   value={content}
                   onChange={(e) => setContent(e.target.value)}
+                  disabled={isSubmitting}
                   rows={15}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent font-mono text-sm"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent font-mono text-sm disabled:bg-gray-100"
                   placeholder="Écrivez votre article ici... Vous pouvez utiliser Markdown :&#10;&#10;# Titre principal&#10;## Sous-titre&#10;&#10;Paragraphe de texte...&#10;&#10;- Liste à puces&#10;- Deuxième élément"
                 />
                 <p className="text-sm text-gray-500 mt-1">
@@ -122,14 +158,16 @@ export default function NewArticlePage() {
               <div className="flex gap-4 pt-6 border-t border-gray-200">
                 <button
                   type="submit"
-                  className="flex-1 bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 transition-colors font-medium"
+                  disabled={isSubmitting}
+                  className="flex-1 bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 transition-colors font-medium disabled:bg-purple-400 disabled:cursor-not-allowed"
                 >
-                  📝 Publier l'article
+                  {isSubmitting ? '📝 Publication en cours...' : '📝 Publier l\'article'}
                 </button>
                 <button
                   type="button"
                   onClick={() => router.push('/')}
-                  className="px-6 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                  disabled={isSubmitting}
+                  className="px-6 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:bg-gray-100 disabled:cursor-not-allowed"
                 >
                   Annuler
                 </button>

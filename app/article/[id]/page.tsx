@@ -2,16 +2,40 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import Header from '@/components/Header';
-import { getArticleById } from '@/data/articles';
+import { supabase } from '@/lib/supabase';
 import ReactMarkdown from 'react-markdown';
+
+export const revalidate = 0; // Désactive le cache
 
 interface PageProps {
   params: Promise<{ id: string }>;
 }
 
+async function getArticle(id: string) {
+  const { data, error } = await supabase
+    .from('articles')
+    .select('*')
+    .eq('id', id)
+    .single();
+
+  if (error || !data) {
+    return null;
+  }
+
+  return {
+    id: data.id,
+    title: data.title,
+    content: data.content,
+    author: data.author,
+    date: new Date(data.created_at).toISOString().split('T')[0],
+    excerpt: data.excerpt,
+    imageUrl: data.image_url
+  };
+}
+
 export default async function ArticlePage({ params }: PageProps) {
   const { id } = await params;
-  const article = getArticleById(id);
+  const article = await getArticle(id);
 
   if (!article) {
     notFound();
